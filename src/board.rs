@@ -1,8 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, near_bindgen, BorshStorageKey, PanicOnDefault};
-use near_sdk::collections::Vector;
 use near_sdk::json_types::Base64VecU8;
+use near_sdk::require;
 
 use crate::auxiliary::*;
 
@@ -42,7 +41,7 @@ impl Board {
 
         field_len /= 2;
 
-        assert_eq!(field.0.len(), field_len);
+        require!(field.0.len() == field_len, "Passed field_len and passed vector length don't match");
         let board = Self {
             field, 
             is_valid: false,
@@ -73,20 +72,13 @@ impl Board {
         }
     }
 
-    pub fn clone(&self) -> Self {
-        Self {
-            field: self.field.clone(),
-            ..*self
-        }
-    }
-
     pub fn set_state_at_cell(&mut self, cord: Point, state: u8) {
         let x = cord.x;
         let y = cord.y;
 
-        assert!(state <= 6);
-        assert!(x < self.size.width);
-        assert!(y < self.size.height);
+        require!(state <= 6, "There is no such available state");
+        require!(x < self.size.width, "Attempt of setting a value beyond the field");
+        require!(y < self.size.height, "Attempt of setting a value beyond the field");
 
         let cell_index = y * self.size.width + x;
         let in_vector_index = cell_index / 2;
@@ -135,7 +127,8 @@ impl Board {
         }
 
         let is_valid = sokoban_counter == 1 && box_counter == dest_counter;
-        board.is_valid = true;
+        board.is_valid = is_valid;
+
         if is_valid {
             board.sokoban_position = Option::Some(sokoban_position);
         }
@@ -239,6 +232,13 @@ impl Board {
 
         board 
     }
+
+    pub fn clone(&self) -> Self {
+        Self {
+            field: self.field.clone(),
+            ..*self
+        }
+    }
 }
 
 
@@ -247,30 +247,222 @@ impl Board {
 mod tests {
     use super::*;
 
-    fn debug_board(board: &Board) {
+    fn state_as_symbol(state: u8) -> char {
+        match state {
+            0 => '*',
+            1 => '.',
+            2 => 'c',
+            3 => 'C',
+            4 => 's',
+            5 => 'S',
+            6 => 'X',
+            _ => panic!("Invalid map")
+        }
+    }
+
+    fn get_board_as_string(board: &Board) -> String {
+        let mut result = String::from("");
+
         for i in 0..board.size.height {
             for j in 0..board.size.width {
                 let unwraped_cell = board.get_state_at_cell(Point { x: j, y: i }).unwrap();
 
-                let symbol = match unwraped_cell {
-                    0 => '*',
-                    1 => '.',
-                    2 => 'c',
-                    3 => 'C',
-                    4 => 's',
-                    5 => 'S',
-                    6 => 'X',
-                    _ => panic!("Invalid map")
-                };
+                let symbol = state_as_symbol(unwraped_cell);
 
-                print!("{symbol}");
+                result.push(symbol);
             }
-            println!();
+            result.push('\n');
         }
+
+        result
+    }
+
+    #[allow(dead_code)]
+    fn debug_board(board: &Board) {
+        print!("{}", get_board_as_string(&board));
     }
 
     #[test]
-    fn test_one_step() {
+    fn test_get_set_state_single() {
+        let mut board = Board::new(Size { width: 1, height: 1 });
+
+        board.set_state_at_cell(Point { x: 0, y: 0 }, 4);
+
+        let expected_board = String::from("s\n");
+        assert_eq!(expected_board, get_board_as_string(&board));
+    }
+
+    #[test]
+    fn test_get_set_state_one_crate() {
+        let mut board = Board::new(Size { width: 4, height: 2 });
+
+        board.set_state_at_cell(Point { x: 0, y: 0 }, 1);
+        board.set_state_at_cell(Point { x: 1, y: 0 }, 4);
+        board.set_state_at_cell(Point { x: 2, y: 0 }, 2);
+        board.set_state_at_cell(Point { x: 3, y: 0 }, 6);
+        board.set_state_at_cell(Point { x: 1, y: 1 }, 1);
+        board.set_state_at_cell(Point { x: 3, y: 1 }, 5);
+
+        let expected_board = String::from(".scX\n*.*S\n");
+        assert_eq!(expected_board, get_board_as_string(&board));
+    }
+
+    #[test]
+    fn test_get_set_state_all_available() {
+        let mut board = Board::new(Size { width: 7, height: 1 });
+
+        board.set_state_at_cell(Point { x: 0, y: 0 }, 0);
+        board.set_state_at_cell(Point { x: 1, y: 0 }, 1);
+        board.set_state_at_cell(Point { x: 2, y: 0 }, 2);
+        board.set_state_at_cell(Point { x: 3, y: 0 }, 3);
+        board.set_state_at_cell(Point { x: 4, y: 0 }, 4);
+        board.set_state_at_cell(Point { x: 5, y: 0 }, 5);
+        board.set_state_at_cell(Point { x: 6, y: 0 }, 6);
+
+        let expected_board = String::from("*.cCsSX\n");
+        assert_eq!(expected_board, get_board_as_string(&board));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_set_unavailable_state() {
+        let mut board = Board::new(Size { width: 1, height: 1 });
+
+        board.set_state_at_cell(Point { x: 0, y: 0 }, 7);
+    }
+
+    #[test]
+    fn test_get_state_at_unavailable_position() {
+        let board = Board::new(Size { width: 2, height: 2 });
+
+        assert_eq!(Option::None, board.get_state_at_cell(Point { x: 3, y: 0}));
+        assert_eq!(Option::None, board.get_state_at_cell(Point { x: 0, y: 3}));
+        assert_eq!(Option::None, board.get_state_at_cell(Point { x: 3, y: 3}));
+    }
+
+    #[test]
+    fn test_try_validate_invalid_board_two_sokobans() {
+        let mut board = Board::new(Size { width: 9, height: 1 });
+
+        board.set_state_at_cell(Point { x: 0, y: 0 }, 4);
+        board.set_state_at_cell(Point { x: 1, y: 0 }, 5);
+
+        board = board.validate_board();
+        assert_eq!(false, board.is_valid);
+    }
+
+    #[test]
+    fn test_try_validate_invalid_board_boxes_dests_not_eq() {
+        let mut board = Board::new(Size { width: 9, height: 1 });
+
+        board.set_state_at_cell(Point { x: 0, y: 0 }, 4);
+        board.set_state_at_cell(Point { x: 1, y: 0 }, 2);
+
+        board = board.validate_board();
+        assert_eq!(false, board.is_valid);
+    }
+
+    #[test]
+    fn test_try_validate_valid_board() {
+        let mut board = Board::new(Size { width: 9, height: 1 });
+
+        board.set_state_at_cell(Point { x: 0, y: 0 }, 4);
+        board.set_state_at_cell(Point { x: 1, y: 0 }, 2);
+        board.set_state_at_cell(Point { x: 2, y: 0 }, 6);
+
+        board = board.validate_board();
+        assert_eq!(true, board.is_valid);
+    }
+
+    #[test]
+    fn test_make_one_step_move_box_on_destination() {
+        let mut board = Board::new(Size { width: 4, height: 2 });
+
+        board.set_state_at_cell(Point { x: 0, y: 0 }, 1);
+        board.set_state_at_cell(Point { x: 1, y: 0 }, 4);
+        board.set_state_at_cell(Point { x: 2, y: 0 }, 2);
+        board.set_state_at_cell(Point { x: 3, y: 0 }, 6);
+        board.set_state_at_cell(Point { x: 1, y: 1 }, 1);
+
+        board = board.validate_board();
+        board = board.make_step(Direction::Forward);
+
+        let expected_board = String::from("..sC\n*.**\n");
+        assert_eq!(expected_board, get_board_as_string(&board));
+    }
+
+    #[test]
+    fn test_make_one_step_move_box_from_destionation() {
+        let mut board = Board::new(Size { width: 4, height: 2 });
+
+        board.set_state_at_cell(Point { x: 0, y: 0 }, 1);
+        board.set_state_at_cell(Point { x: 1, y: 0 }, 4);
+        board.set_state_at_cell(Point { x: 2, y: 0 }, 3);
+        board.set_state_at_cell(Point { x: 3, y: 0 }, 1);
+        board.set_state_at_cell(Point { x: 1, y: 1 }, 1);
+
+        board = board.validate_board();
+        board = board.make_step(Direction::Forward);
+
+        let expected_board = String::from("..Sc\n*.**\n");
+        assert_eq!(expected_board, get_board_as_string(&board));
+    }
+
+    #[test]
+    fn test_make_one_step_move_sokoban() {
+        let mut board = Board::new(Size { width: 2, height: 1 });
+
+        board.set_state_at_cell(Point { x: 0, y: 0 }, 4);
+        board.set_state_at_cell(Point { x: 1, y: 0 }, 1);
+
+        board = board.validate_board();
+        board = board.make_step(Direction::Forward);
+
+        let expected_board = String::from(".s\n");
+        assert_eq!(expected_board, get_board_as_string(&board));
+    }
+
+    #[test]
+    fn test_make_one_step_move_sokoban_on_destination() {
+        let mut board = Board::new(Size { width: 3, height: 1 });
+
+        board.set_state_at_cell(Point { x: 0, y: 0 }, 4);
+        board.set_state_at_cell(Point { x: 1, y: 0 }, 6);
+        board.set_state_at_cell(Point { x: 2, y: 0 }, 2);
+
+        board = board.validate_board();
+        board = board.make_step(Direction::Forward);
+
+        let expected_board = String::from(".Sc\n");
+        assert_eq!(expected_board, get_board_as_string(&board));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_make_one_step_move_sokoban_out_of_field_left() {
+        let mut board = Board::new(Size { width: 1, height: 1 });
+
+        board.set_state_at_cell(Point { x: 0, y: 0 }, 4);
+       
+        board = board.validate_board();
+        board.make_step(Direction::Backward);
+    }
+
+    #[test]
+    fn test_make_one_step_move_sokoban_out_of_field_right() {
+        let mut board = Board::new(Size { width: 1, height: 1 });
+
+        board.set_state_at_cell(Point { x: 0, y: 0 }, 4);
+       
+        board = board.validate_board();
+        board = board.make_step(Direction::Forward);
+
+        let expected_board = String::from("s\n");
+        assert_eq!(expected_board, get_board_as_string(&board));
+    }
+
+    #[test]
+    fn test_run_simple_game() {
         let mut board = Board::new(Size { width: 5, height: 4 });
 
         board.set_state_at_cell(Point { x: 0, y: 0 }, 4);
@@ -288,9 +480,6 @@ mod tests {
 
         let mut board = board.validate_board();
 
-        debug_board(&board); 
-        println!();
-
         let actions = [
             Direction::Forward, 
             Direction::Forward,
@@ -298,11 +487,16 @@ mod tests {
             Direction::Down
         ];
 
-        for action in actions {
-            board = board.make_step(action);
-            debug_board(&board); 
+        let game_states = [
+            String::from(".scX*\n.c..*\n.X.C*\n*****\n"), 
+            String::from("..sC*\n.c..*\n.X.C*\n*****\n"), 
+            String::from(".s.C*\n.c..*\n.X.C*\n*****\n"),
+            String::from("...C*\n.s..*\n.C.C*\n*****\n")
+        ];
 
-            println!();
+        for (index, action) in actions.iter().enumerate() {
+            board = board.make_step(*action);
+            assert_eq!(game_states[index], get_board_as_string(&board));
         }   
     }
 }

@@ -7,7 +7,7 @@ pub struct Point {
     pub y: usize,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Copy, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub enum Direction {
     Backward,
