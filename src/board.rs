@@ -212,15 +212,8 @@ impl Board {
             ..*self
         }
     }
-}
 
-
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn state_as_symbol(state: u8) -> char {
+    pub fn state_as_symbol(state: u8) -> char {
         match state {
             0 => '*',
             1 => '.',
@@ -233,21 +226,31 @@ mod tests {
         }
     }
 
-    fn get_board_as_string(board: &Board) -> String {
-        let mut result = String::from("");
+    pub fn get_board_as_strings(&self) -> Vec<String> {
+        let mut vector = Vec::new();
 
-        for i in 0..board.size.height {
-            for j in 0..board.size.width {
-                let unwraped_cell = board.get_state_at_cell(Point { x: j, y: i }).unwrap();
-
-                let symbol = state_as_symbol(unwraped_cell);
-
+        for i in 0..self.size.height {
+            let mut result = String::from("");
+            for j in 0..self.size.width {
+                let unwraped_cell = self.get_state_at_cell(Point { x: j, y: i }).unwrap();
+                let symbol = Self::state_as_symbol(unwraped_cell);
                 result.push(symbol);
             }
-            result.push('\n');
+            vector.push(result);
         }
 
-        result
+        vector
+    }
+}
+
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn get_board_as_string(board: &Board) -> String {
+        board.get_board_as_strings().join("\n")
     }
 
     #[allow(dead_code)]
@@ -261,7 +264,7 @@ mod tests {
 
         board.set_state_at_cell(Point { x: 0, y: 0 }, 4);
 
-        let expected_board = String::from("s\n");
+        let expected_board = String::from("s");
         assert_eq!(expected_board, get_board_as_string(&board));
     }
 
@@ -276,7 +279,7 @@ mod tests {
         board.set_state_at_cell(Point { x: 1, y: 1 }, 1);
         board.set_state_at_cell(Point { x: 3, y: 1 }, 5);
 
-        let expected_board = String::from(".scX\n*.*S\n");
+        let expected_board = String::from(".scX\n*.*S");
         assert_eq!(expected_board, get_board_as_string(&board));
     }
 
@@ -292,7 +295,7 @@ mod tests {
         board.set_state_at_cell(Point { x: 5, y: 0 }, 5);
         board.set_state_at_cell(Point { x: 6, y: 0 }, 6);
 
-        let expected_board = String::from("*.cCsSX\n");
+        let expected_board = String::from("*.cCsSX");
         assert_eq!(expected_board, get_board_as_string(&board));
     }
 
@@ -360,7 +363,7 @@ mod tests {
         board = board.validate_board();
         board = board.make_step(Direction::Forward);
 
-        let expected_board = String::from("..sC\n*.**\n");
+        let expected_board = String::from("..sC\n*.**");
         assert_eq!(expected_board, get_board_as_string(&board));
     }
 
@@ -377,7 +380,7 @@ mod tests {
         board = board.validate_board();
         board = board.make_step(Direction::Forward);
 
-        let expected_board = String::from("..Sc\n*.**\n");
+        let expected_board = String::from("..Sc\n*.**");
         assert_eq!(expected_board, get_board_as_string(&board));
     }
 
@@ -391,7 +394,7 @@ mod tests {
         board = board.validate_board();
         board = board.make_step(Direction::Forward);
 
-        let expected_board = String::from(".s\n");
+        let expected_board = String::from(".s");
         assert_eq!(expected_board, get_board_as_string(&board));
     }
 
@@ -406,7 +409,7 @@ mod tests {
         board = board.validate_board();
         board = board.make_step(Direction::Forward);
 
-        let expected_board = String::from(".Sc\n");
+        let expected_board = String::from(".Sc");
         assert_eq!(expected_board, get_board_as_string(&board));
     }
 
@@ -419,7 +422,7 @@ mod tests {
         board = board.validate_board();
         board.make_step(Direction::Backward);
 
-        let expected_board = String::from("s\n");
+        let expected_board = String::from("s");
         assert_eq!(expected_board, get_board_as_string(&board));
     }
 
@@ -432,7 +435,7 @@ mod tests {
         board = board.validate_board();
         board = board.make_step(Direction::Forward);
 
-        let expected_board = String::from("s\n");
+        let expected_board = String::from("s");
         assert_eq!(expected_board, get_board_as_string(&board));
     }
 
@@ -453,6 +456,10 @@ mod tests {
         board.set_state_at_cell(Point { x: 2, y: 2 }, 1);
         board.set_state_at_cell(Point { x: 3, y: 2 }, 3);
 
+        let d = Direction::Forward;
+        let s: String = near_sdk::serde_json::to_string(&d).unwrap();
+        println!("{}", s);
+
         let mut board = board.validate_board();
 
         let actions = [
@@ -463,10 +470,10 @@ mod tests {
         ];
 
         let game_states = [
-            String::from(".scX*\n.c..*\n.X.C*\n*****\n"), 
-            String::from("..sC*\n.c..*\n.X.C*\n*****\n"), 
-            String::from(".s.C*\n.c..*\n.X.C*\n*****\n"),
-            String::from("...C*\n.s..*\n.C.C*\n*****\n")
+            String::from(".scX*\n.c..*\n.X.C*\n*****"), 
+            String::from("..sC*\n.c..*\n.X.C*\n*****"), 
+            String::from(".s.C*\n.c..*\n.X.C*\n*****"),
+            String::from("...C*\n.s..*\n.C.C*\n*****")
         ];
 
         for (index, action) in actions.iter().enumerate() {
