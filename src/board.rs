@@ -137,49 +137,16 @@ impl Board {
     }
 
     pub fn make_step(&self, direction: Direction) -> Self {
-        let mut board = Board {
-            field: self.field.clone(),
-            ..*self
-        };
-
+        let mut board : Board = self.clone();
         let cur_cell = board.sokoban_position.expect("Invalid board");
 
-        let next_cell = match direction {
-            Direction::Backward => Point {
-                x: cur_cell.x - 1,
-                ..cur_cell
-            },
-            Direction::Forward => Point {
-                x: cur_cell.x + 1,
-                ..cur_cell
-            },
-            Direction::Up => Point {
-                y: cur_cell.y - 1,
-                ..cur_cell
-            }, 
-            Direction::Down => Point {
-                y: cur_cell.y + 1,
-                ..cur_cell
-            },
-        };
-        let after_next_cell = match direction {
-            Direction::Backward => Point {
-                x: next_cell.x - 1,
-                ..next_cell
-            }, 
-            Direction::Forward => Point {
-                x: next_cell.x + 1,
-                ..next_cell
-            },
-            Direction::Up => Point {
-                y: next_cell.y - 1,
-                ..next_cell
-            }, 
-            Direction::Down => Point {
-                y: next_cell.y + 1,
-                ..next_cell
-            },
-        };
+        let next_cell = cur_cell.get_point_in_direction(direction);
+
+        if next_cell == None { return board; }
+        let next_cell = next_cell.unwrap();
+
+        let after_next_cell = next_cell.get_point_in_direction(direction);
+
         if let Some(state_at_next_cell) = board.get_state_at_cell(next_cell) {
             match state_at_next_cell {
                 1 => {
@@ -188,6 +155,9 @@ impl Board {
                     board.set_state_at_cell(cur_cell, 1);
                 },
                 2 => {
+                    if after_next_cell == None { return board; } 
+                    let after_next_cell = after_next_cell.unwrap();
+
                     let state = board.get_state_at_cell(after_next_cell);
 
                     if let Some(state) = state {
@@ -205,6 +175,9 @@ impl Board {
                     } 
                 },
                 3 => {
+                    if after_next_cell == None { return board; } 
+                    let after_next_cell = after_next_cell.unwrap();
+
                     let state = board.get_state_at_cell(after_next_cell);
 
                     if let Some(state) = state {
@@ -438,7 +411,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn test_make_one_step_move_sokoban_out_of_field_left() {
         let mut board = Board::new(Size { width: 1, height: 1 });
 
@@ -446,6 +418,9 @@ mod tests {
        
         board = board.validate_board();
         board.make_step(Direction::Backward);
+
+        let expected_board = String::from("s\n");
+        assert_eq!(expected_board, get_board_as_string(&board));
     }
 
     #[test]
