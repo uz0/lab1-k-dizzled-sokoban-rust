@@ -1,6 +1,6 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{near_bindgen, BorshStorageKey, PanicOnDefault};
+use near_sdk::{env, near_bindgen, BorshStorageKey, PanicOnDefault};
 use near_sdk::collections::Vector;
 use near_sdk::json_types::Base64VecU8;
 
@@ -52,8 +52,13 @@ impl Contract {
     pub fn step(&mut self, index: BoardIndex, direction: Direction) -> Option<Board> {
         let board = self.get_board(index).expect("No board");
         if board.is_valid == true {
+            env::log_str("Old board");
+            board.debug_logs();
             let new_board = board.make_step(direction);
             self.boards.replace(index, &new_board);
+
+            env::log_str("New board");
+            new_board.debug_logs();
 
             Some(new_board)
         } else {
