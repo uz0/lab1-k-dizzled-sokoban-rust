@@ -1,0 +1,19 @@
+[package]
+name = "rust_near_sokoban"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = "4.0.0"
+
+[profile.release]
+codegen-units = 1
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true

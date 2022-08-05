@@ -1,19 +1,6 @@
-[package]
-name = "rust-near-sokoban"
-version = "0.1.0"
-edition = "2021"
+[workspace]
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
-[dependencies]
-near-sdk = "4.0.0"
-
-[profile.release]
-codegen-units = 1
-# Tell `rustc` to optimize for small code size.
-opt-level = "s"
-lto = true
-debug = false
-panic = "abort"
-overflow-checks = true
+members = [
+    "sb_token",
+    "rust_near_sokoban",
+]

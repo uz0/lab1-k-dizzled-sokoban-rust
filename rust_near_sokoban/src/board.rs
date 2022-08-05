@@ -27,7 +27,7 @@ impl Board {
         Self {
             field: Base64VecU8::from(vec![0u8; field_len]),
             is_valid: false,
-            sokoban_position: Option::None,
+            sokoban_position: None,
             field_len,
             size,
         }
