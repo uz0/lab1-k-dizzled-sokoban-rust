@@ -136,6 +136,24 @@ impl Board {
         board
     }
 
+    pub fn check_if_finished(&self) -> bool {
+        if !self.is_valid {
+            return false;
+        }
+
+        let mut box_counter = 0; 
+
+        for x in 0..self.size.width {
+            for y in 0..self.size.height {
+                if self.get_state_at_cell(Point { x, y }).unwrap() == 2 {
+                    box_counter += 1;
+                }
+            }
+        }
+
+        return box_counter == 0;
+    }
+
     pub fn make_step(&self, direction: Direction) -> Self {
         let mut board : Board = self.clone();
         let cur_cell = board.sokoban_position.expect("Invalid board");

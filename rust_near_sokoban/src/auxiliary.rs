@@ -54,7 +54,7 @@ pub enum Outcome {
     Failure,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Copy, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Copy, Clone, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Size {
     pub width: usize,
